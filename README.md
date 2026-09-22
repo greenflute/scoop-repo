@@ -15,4 +15,10 @@ scoop install greenflute/tokcos-cli
 scoop install greenflute/tokcos-work
 ```
 
+Other applications:
+
+```powershell
+scoop install greenflute/aardio
+```
+
 The manifests use versioned official Tokcos downloads and fixed SHA256 checksums.
