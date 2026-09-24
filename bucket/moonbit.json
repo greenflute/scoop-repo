@@ -1,0 +1,48 @@
+{
+  "version": "0.10.14+7d59c7ec9",
+  "description": "MoonBit programming language toolchain",
+  "homepage": "https://www.moonbitlang.com/",
+  "license": {
+    "identifier": "MoonBit Public Source License v1",
+    "url": "https://www.moonbitlang.com/licenses/moonbit-public-source-license-v1"
+  },
+  "architecture": {
+    "64bit": {
+      "url": [
+        "https://cli.moonbitlang.com/binaries/0.10.14%2B7d59c7ec9/moonbit-windows-x86_64.zip",
+        "https://cli.moonbitlang.com/cores/core-0.10.14%2B7d59c7ec9.zip"
+      ],
+      "hash": [
+        "faae225a8287d0ce69e44b5b3f754af988e97f4446056d8f32ceb3ddb998fce7",
+        "63e5b99991ac8fd49556b1e17bdcbdc662d797000250dd11ef090f38a2175e84"
+      ]
+    }
+  },
+  "extract_to": [
+    "",
+    "lib"
+  ],
+  "pre_install": [
+    "$env:MOON_TOOLCHAIN_ROOT = $dir",
+    "& \"$dir\\bin\\moon.exe\" -C \"$dir\\lib\\core\" bundle --warn-list -a --all; if ($LASTEXITCODE -ne 0) { throw \"MoonBit core bundling failed with exit code $LASTEXITCODE.\" }",
+    "& \"$dir\\bin\\moon.exe\" -C \"$dir\\lib\\core\" bundle --warn-list -a --target wasm-gc --quiet; if ($LASTEXITCODE -ne 0) { throw \"MoonBit wasm-gc core bundling failed with exit code $LASTEXITCODE.\" }"
+  ],
+  "bin": [
+    "bin\\moon.exe",
+    [
+      "bin\\moon.exe",
+      "moonx"
+    ],
+    "bin\\moon-cram.exe",
+    "bin\\moon-ide.exe",
+    "bin\\moon-lsp.exe",
+    "bin\\moon-wasm-opt.exe",
+    "bin\\moon_cove_report.exe",
+    "bin\\moonc.exe",
+    "bin\\mooncake.exe",
+    "bin\\moondoc.exe",
+    "bin\\moonfmt.exe",
+    "bin\\mooninfo.exe",
+    "bin\\moonrun.exe"
+  ]
+}
