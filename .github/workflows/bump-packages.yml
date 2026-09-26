@@ -3,16 +3,23 @@ name: Bump package versions
 # Keeps the Scoop manifests in this bucket in step with their upstream releases,
 # so `scoop update` finds new versions without manual editing.
 #
-# Why 03:17 UTC and not 03:00: GitHub documents that scheduled runs are delayed
-# when the platform is busy, and that "high load times include the start of every
-# hour".  An off-the-hour minute lowers the chance of a delayed or dropped run.
+# Why :17 past the hour and not on the hour: GitHub documents that scheduled runs
+# are delayed when the platform is busy, and that "high load times include the start
+# of every hour".  An off-the-hour minute lowers the chance of a delayed or dropped
+# run.
+#
+# Why four times a day: aardio republishes one unversioned URL in place, so from the
+# moment upstream overwrites it until the next run this bucket serves a stale hash
+# and `scoop install aardio` fails validation.  Four runs bound that window to about
+# six hours.  The Tokcos checks are two small JSON fetches, so the extra runs are
+# free for them.
 #
 # Caveat: GitHub automatically disables scheduled workflows in a public
 # repository after 60 days without repository activity.  Every successful bump is
 # a commit, which counts as activity; if the bucket ever goes quiet for two
 # months, re-enable the workflow from the Actions tab or run it manually.
 #
-# Only the version check runs daily.  Artifacts are downloaded (and the checksums
+# Only the version check runs each time.  Artifacts are downloaded (and the checksums
 # therefore recomputed from the real bytes) only when a version actually changed.
 # aardio is the exception: it republishes one unversioned URL in place, so its
 # ~7 MB artifact is fetched every run -- that check is the only way to tell
@@ -20,7 +27,7 @@ name: Bump package versions
 
 on:
   schedule:
-    - cron: "17 3 * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
 
 permissions:
