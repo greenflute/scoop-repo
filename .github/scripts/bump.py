@@ -29,10 +29,25 @@ would rewrite the version-discovery machinery too and silently break checkver.
 Editing the parsed document keeps the change to exactly the three fields that
 should move.
 
+Floating-URL packages
+---------------------
+Not every upstream versions its download path.  aardio publishes a single fixed URL
+(`https://d.aardio.com/ide/aardio.7z`) and overwrites that file in place on every
+release -- its own website links to exactly that URL -- so there is no immutable
+per-version artifact to point at and no version segment to rewrite.  For such a
+package the version is read from an upstream metadata endpoint instead, and because
+the bytes behind a fixed URL can move without the reported version moving, the
+declared hash cannot be assumed to stay valid: it is re-derived from whatever is
+served, on every run.  The manifest is correct exactly when its (version, hash) pair
+equals upstream's (reported version, served bytes).  aardio is ~7 MB, which is
+negligible next to the multi-hundred-MB Tokcos artifacts.
+
 Cost
 ----
 Artifacts are downloaded only when the declared version actually changed, so the
-daily run normally performs two small JSON fetches and nothing else.
+daily run normally performs two small JSON fetches and nothing else.  The one
+exception is a floating-URL package, whose artifact is small and is fetched every
+run because checking it is the only way to know it is still current.
 """
 
 from __future__ import annotations
@@ -97,6 +112,32 @@ PACKAGES = (
         binary_hash_key="sha256",
         binary_member="win32-x64/tokcos-cli.exe",
         artifact_name="tokcos-cli-win32-x64.zip",
+    ),
+)
+
+
+@dataclass(frozen=True)
+class FloatingPackage:
+    """A manifest whose download URL carries no version segment.
+
+    See "Floating-URL packages" in the module docstring: the version comes from a
+    metadata endpoint, the url is never rewritten, and the hash is re-derived from
+    the served bytes on every run.
+    """
+
+    name: str
+    manifest: Path
+    meta_url: str
+    #: metadata key holding the version string
+    version_key: str
+
+
+FLOATING_PACKAGES = (
+    FloatingPackage(
+        name="aardio",
+        manifest=REPO / "bucket/aardio.json",
+        meta_url="https://d.aardio.com/ide/check/",
+        version_key="version",
     ),
 )
 
@@ -288,8 +329,82 @@ def bump(package: Package) -> str | None:
     return latest
 
 
+def bump_floating(package: FloatingPackage) -> tuple[str | None, str | None]:
+    """Sync a floating-URL manifest.  Returns (version, commit_subject), or (None, None).
+
+    The subject is built here rather than in the workflow because a run can end in
+    either of two genuinely different edits: a new version, or the same version with
+    fresh bytes behind it.  Those deserve different commit messages.
+    """
+    meta = fetch_json(package.meta_url)
+    latest = meta[package.version_key]
+    text = package.manifest.read_text(encoding="utf-8")
+    document = json.loads(text)
+    current = document["version"]
+    url = document["url"]
+    declared_hash = document["hash"]
+
+    # The whole entry rests on this url being unversioned and stable.  If upstream
+    # ever publishes per-version artifacts, stop: the url no longer means "latest"
+    # and this code path is the wrong one.
+    if latest in url:
+        fail(
+            f"{package.name}: download url {url} now contains {latest}; upstream appears to "
+            "have moved to versioned artifacts, which needs the versioned-url code path"
+        )
+
+    indent = json_indent(text)
+    if json.dumps(document, indent=indent, ensure_ascii=False) + "\n" != text:
+        fail(
+            f"{package.name}: manifest is not in canonical json.dumps(indent={indent}) form; "
+            "reformat it deliberately before relying on automated bumps"
+        )
+
+    with tempfile.TemporaryDirectory() as workdir:
+        archive = Path(workdir) / artifact_basename(url)
+        real, size = download(url, archive)
+    log(f"{package.name}: upstream reports {latest}; served artifact {real} ({size} bytes)")
+
+    if current == latest and declared_hash == real:
+        log(f"{package.name}: already at {latest}")
+        return None, None
+
+    if current != latest:
+        log(f"{package.name}: {current} -> {latest}")
+        assert_not_a_downgrade(current, latest, package.name)
+        subject = f"Update {package.name} to {latest}"
+    else:
+        warn(
+            f"{package.name}: upstream still reports {latest} but the served bytes changed "
+            f"({declared_hash} -> {real}); refreshing the hash"
+        )
+        subject = f"Refresh {package.name} hash for {latest}"
+
+    document["version"] = latest
+    document["hash"] = real
+    updated = json.dumps(document, indent=indent, ensure_ascii=False) + "\n"
+
+    # As in bump(): assert against the exact bytes to be committed, so the rewrite
+    # can only ever have touched the version and the hash.  The url must come
+    # through untouched -- that is the point of this code path.
+    intended = json.loads(text)
+    intended["version"] = latest
+    intended["hash"] = real
+    if json.loads(updated) != intended:
+        fail(f"{package.name}: rewritten manifest differs from the intended document")
+    if url not in updated:
+        fail(f"{package.name}: the download url was lost in the rewrite")
+    if updated.count(real) != 1:
+        fail(f"{package.name}: expected exactly one occurrence of hash {real}")
+
+    package.manifest.write_text(updated, encoding="utf-8")
+    log(f"  {package.manifest.relative_to(REPO)} rewritten")
+    return latest, subject
+
+
 def main() -> int:
     versions = {package.name: bump(package) for package in PACKAGES}
+    floating = {package.name: bump_floating(package) for package in FLOATING_PACKAGES}
 
     for package in PACKAGES:
         key = package.name.replace("tokcos-", "")
@@ -297,9 +412,16 @@ def main() -> int:
         set_output(f"{key}_changed", "true" if version else "false")
         set_output(f"{key}_version", version or "")
 
-    set_output("changed", "true" if any(versions.values()) else "false")
-    if not any(versions.values()):
-        log("All Tokcos Scoop manifests are already up to date.")
+    for package in FLOATING_PACKAGES:
+        version, subject = floating[package.name]
+        set_output(f"{package.name}_changed", "true" if version else "false")
+        set_output(f"{package.name}_version", version or "")
+        set_output(f"{package.name}_subject", subject or "")
+
+    changed = any(versions.values()) or any(version for version, _ in floating.values())
+    set_output("changed", "true" if changed else "false")
+    if not changed:
+        log("All Scoop manifests are already up to date.")
     return 0
 
 
