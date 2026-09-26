@@ -1,10 +1,10 @@
 {
-    "version": "44.1.2",
+    "version": "44.5.0",
     "description": "Lightweight Windows desktop development environment",
     "homepage": "https://www.aardio.com/",
     "license": "Freeware",
     "url": "https://d.aardio.com/ide/aardio.7z",
-    "hash": "d7c3921989f2be584df32ef0690312a0c4879ca9b9107f6d4688e5a27098288e",
+    "hash": "ce299a018a79d53636801840cd2572d5d13f5295e8b8cdbe32cc87928fb58ceb",
     "shortcuts": [
         [
             "aardio.exe",
