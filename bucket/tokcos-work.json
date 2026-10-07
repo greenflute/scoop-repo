@@ -1,12 +1,12 @@
 {
-    "version": "1.2.6",
+    "version": "1.2.7",
     "description": "Desktop app for building AI workflows and managing local MCP servers",
     "homepage": "https://www.tokcos.com/",
     "license": "Proprietary",
     "architecture": {
         "64bit": {
-            "url": "https://tokcos-1328134559.cos.ap-guangzhou.myqcloud.com/tokcos-gui/release/1.2.6/Tokcos%20Work-1.2.6-x64.exe#/dl.7z",
-            "hash": "fdcedda146b9fea07660493ec04d8377069a647f40aecf5e0b6345863cfcf074"
+            "url": "https://tokcos-1328134559.cos.ap-guangzhou.myqcloud.com/tokcos-gui/release/1.2.7/Tokcos%20Work-1.2.7-x64.exe#/dl.7z",
+            "hash": "17910d31d95b32f710aa77e5c65ce946304bc6c3078e0f417f41598664b23e85"
         }
     },
     "shortcuts": [
