@@ -1,12 +1,12 @@
 {
-    "version": "0.5.9",
+    "version": "0.6.0",
     "description": "Token-efficient AI coding assistant for the terminal",
     "homepage": "https://www.tokcos.com/",
     "license": "Proprietary",
     "architecture": {
         "64bit": {
-            "url": "https://tokcos-1328134559.cos.ap-guangzhou.myqcloud.com/tokcos-cli/release/0.5.9/tokcos-cli-win32-x64.zip",
-            "hash": "aaadbddae4d195fd97493df373f7832732a88e7b3a3e622678891ff71da0206a",
+            "url": "https://tokcos-1328134559.cos.ap-guangzhou.myqcloud.com/tokcos-cli/release/0.6.0/tokcos-cli-win32-x64.zip",
+            "hash": "d2fd59473da70fe74181b385fb198d2636b49c58acb94934ddd9a416e64dceda",
             "extract_dir": "win32-x64"
         }
     },
