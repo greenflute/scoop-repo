@@ -1,0 +1,42 @@
+{
+  "version": "2.0.9",
+  "description": "Writing, drawing, and AI workspace",
+  "homepage": "https://zditor.com/",
+  "license": "Unknown",
+  "architecture": {
+    "64bit": {
+      "url": "https://download.zditor.com/zditor-v2.0.9/zditor_2.0.9_x64-setup.exe",
+      "hash": "",
+      "installer": {
+        "args": [
+          "/S",
+          "/D=$dir"
+        ],
+        "keep": true
+      },
+      "uninstaller": {
+        "file": "$dir\\uninstall.exe",
+        "args": [
+          "/S"
+        ]
+      },
+      "shortcuts": [
+        [
+          "Zditor.exe",
+          "Zditor"
+        ]
+      ]
+    }
+  },
+  "checkver": {
+    "url": "https://zditor.com/api/releases",
+    "jsonpath": "$.version"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://download.zditor.com/zditor-v$version/zditor_$version_x64-setup.exe"
+      }
+    }
+  }
+}

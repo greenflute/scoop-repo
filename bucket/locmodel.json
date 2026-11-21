@@ -1,0 +1,42 @@
+{
+  "version": "3.5.1",
+  "description": "Local AI model deployment and studio",
+  "homepage": "https://locmodel.com/",
+  "license": "Unknown",
+  "architecture": {
+    "64bit": {
+      "url": "https://locmodel.com/LocModel_3.5.1_x64-setup.exe",
+      "hash": "",
+      "installer": {
+        "args": [
+          "/S",
+          "/D=$dir"
+        ],
+        "keep": true
+      },
+      "uninstaller": {
+        "file": "$dir\\uninstall.exe",
+        "args": [
+          "/S"
+        ]
+      },
+      "shortcuts": [
+        [
+          "LocModel.exe",
+          "LocModel"
+        ]
+      ]
+    }
+  },
+  "checkver": {
+    "url": "https://locmodel.com/",
+    "regex": "LocModel_(\\d+(?:\\.\\d+)+)_x64-setup\\.exe"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://locmodel.com/LocModel_$version_x64-setup.exe"
+      }
+    }
+  }
+}

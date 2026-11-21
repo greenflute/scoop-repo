@@ -20,9 +20,13 @@ Other applications:
 ```powershell
 scoop install greenflute/aardio
 scoop install greenflute/moonbit
+scoop install greenflute/zditor
+scoop install greenflute/locmodel
 ```
 
-The manifests use versioned official Tokcos downloads and fixed SHA256 checksums.
+The Tokcos manifests use versioned official downloads and fixed SHA256 checksums.
+The Zditor and LocModel releases do not publish SHA256 checksums, so their
+manifests leave the hash empty rather than inventing one.
 
 The official MoonBit VS Code extension currently looks for its toolchain under
 `%MOON_HOME%\bin` (default: `%USERPROFILE%\.moon\bin`) instead of using commands
