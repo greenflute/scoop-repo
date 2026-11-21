@@ -58,6 +58,8 @@ import os
 import re
 import sys
 import tempfile
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -163,10 +165,57 @@ def set_output(name: str, value: str) -> None:
         handle.write(f"{name}={value}\n")
 
 
+#: How many times one HTTP request may be attempted before the run gives up.
+MAX_ATTEMPTS = 4
+#: Backoff before attempt 2, 3 and 4.  A handshake failure against the CDN is
+#: usually over within seconds, and the job is a scheduled sync with time to spare.
+BACKOFF_SECONDS = (5, 15, 45)
+
+
+def is_transient(error: BaseException) -> bool:
+    """Whether an HTTP failure is worth retrying.
+
+    Client errors are not: a 404 stays a 404, and reporting a wrong URL straight
+    away is better than discovering it after two minutes of backing off.  Request
+    timeouts (408) and rate limits (429) are the exceptions.  Everything else --
+    TLS handshake timeouts, connection resets, 5xx, a truncated body that fails to
+    parse -- is a network blip until proven otherwise.
+    """
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code >= 500 or error.code in (408, 429)
+    return True
+
+
+def with_retry(what: str, action):
+    """Run `action`, retrying transient failures with a linear-with-growth backoff.
+
+    GitHub-hosted runners intermittently fail the TLS handshake to the CDN behind
+    this bucket (2026-11-21: `_ssl.c:1063: The handshake operation timed out`,
+    twice, against tokscos-*.cos.ap-guangzhou.myqcloud.com).  One blip used to
+    fail the whole run even though an immediate retry would have succeeded, so
+    every request goes through here.
+    """
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            return action()
+        except Exception as error:  # noqa: BLE001 -- classified by is_transient()
+            if attempt == MAX_ATTEMPTS or not is_transient(error):
+                raise
+            delay = BACKOFF_SECONDS[attempt - 1]
+            warn(
+                f"{what}: {type(error).__name__}: {error} "
+                f"(attempt {attempt}/{MAX_ATTEMPTS}); retrying in {delay}s"
+            )
+            time.sleep(delay)
+
+
 def fetch_json(url: str) -> dict:
-    request = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return json.load(response)
+    def attempt() -> dict:
+        request = urllib.request.Request(url, headers=UA)
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.load(response)
+
+    return with_retry(f"GET {url}", attempt)
 
 
 def sha256_stream(stream) -> str:
@@ -177,15 +226,19 @@ def sha256_stream(stream) -> str:
 
 
 def download(url: str, dest: Path) -> tuple[str, int]:
-    request = urllib.request.Request(url, headers=UA)
-    digest = hashlib.sha256()
-    size = 0
-    with urllib.request.urlopen(request, timeout=900) as response, dest.open("wb") as handle:
-        while chunk := response.read(1 << 20):
-            handle.write(chunk)
-            digest.update(chunk)
-            size += len(chunk)
-    return digest.hexdigest(), size
+    def attempt() -> tuple[str, int]:
+        request = urllib.request.Request(url, headers=UA)
+        digest = hashlib.sha256()
+        size = 0
+        # "wb" truncates, so a retry after a half-written body starts clean.
+        with urllib.request.urlopen(request, timeout=900) as response, dest.open("wb") as handle:
+            while chunk := response.read(1 << 20):
+                handle.write(chunk)
+                digest.update(chunk)
+                size += len(chunk)
+        return digest.hexdigest(), size
+
+    return with_retry(f"GET {url}", attempt)
 
 
 def sha256_zip_member(archive: Path, member: str) -> str:
